@@ -8,7 +8,8 @@ A polished, production-ready reaction speed test built with Next.js App Router a
 - Randomized start delay with safe timer cleanup
 - Mouse + touch friendly interaction via one large responsive panel
 - Mobile-focused layout (no fixed controls that can hide key actions)
-- Optional leaderboard backed by Neon/Postgres (fastest times first)
+- Optional Neon/Postgres leaderboard
+- **Daily leaderboard mode:** **Today's Top 5** in a server-configured timezone
 - Accessible copy, large tap targets, reduced-motion support
 
 ## Tech Stack
@@ -32,15 +33,18 @@ npm install
 cp .env.example .env.local
 ```
 
-Then set `POSTGRES_URL` to your Neon/Postgres connection string.
+3. Configure environment variables:
 
-3. Run development server:
+- `POSTGRES_URL` (optional): Neon/Postgres connection string.
+- `APP_TIMEZONE` (required for consistent day boundaries): IANA timezone (for example `Europe/London`).
+
+4. Run development server:
 
 ```bash
 npm run dev
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000).
+5. Open [http://localhost:3000](http://localhost:3000).
 
 ## Database Setup (Optional Leaderboard)
 
@@ -54,35 +58,67 @@ CREATE TABLE IF NOT EXISTS reaction_scores (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS reaction_scores_ranking_idx
-  ON reaction_scores (reaction_time_ms ASC, created_at ASC);
+CREATE INDEX IF NOT EXISTS reaction_scores_daily_leaderboard_idx
+  ON reaction_scores (created_at, reaction_time_ms ASC, id ASC);
 ```
 
-If `POSTGRES_URL` is missing, the app still works fully, but score submission is hidden and API reads return leaderboard disabled.
+For existing deployments, apply migration SQL in `db/migrations/2026030701_daily_top5_timezone.sql`.
+
+## Daily Leaderboard Query Logic
+
+- Membership is server-side only (never from client-side date filtering).
+- Current day boundaries are computed inside Postgres using `APP_TIMEZONE`.
+- Ranking is deterministic and stable:
+  1. `reaction_time_ms ASC` (faster is better)
+  2. `created_at ASC`
+  3. `id ASC`
+- Result size is capped at 5 rows in SQL.
 
 ## API Endpoints
 
 - `GET /api/scores`
-  - Returns `{ enabled, scores }`
+  - Returns `{ enabled, leaderboardLabel, timeZone, scores }`
 - `POST /api/scores`
   - Accepts `{ name, reactionTimeMs }`
   - Uses the displayed final result value for submission
 
-## Deployment (Vercel)
+## Vercel Setup
 
-1. Push repo to GitHub.
-2. Import into Vercel.
-3. Add `POSTGRES_URL` in Project Settings → Environment Variables (optional leaderboard).
-4. Deploy.
+1. In Vercel Project → **Settings → Environment Variables**, set:
+   - `POSTGRES_URL` (Production, Preview, Development where leaderboard should be enabled)
+   - `APP_TIMEZONE` (Production, Preview, Development; example `Europe/London`)
+2. Save variables.
+3. **Redeploy** each environment that changed, because Vercel env var updates apply only to new deployments.
+4. If using ISR/cache later, ensure leaderboard API responses are not statically cached across day boundaries.
+
+## Neon Setup
+
+1. Verify schema assumptions:
+   - `reaction_scores.created_at` is `TIMESTAMPTZ`
+   - table and columns match `db/schema.sql`
+2. Run migration:
+
+```sql
+CREATE INDEX IF NOT EXISTS reaction_scores_daily_leaderboard_idx
+  ON reaction_scores (created_at, reaction_time_ms ASC, id ASC);
+
+DROP INDEX IF EXISTS reaction_scores_ranking_idx;
+```
+
+3. If using Neon + Vercel integration:
+   - `DATABASE_URL`/`POSTGRES_URL` can be auto-injected by integration.
+   - Confirm Production uses the production branch/database.
+   - Confirm Preview deployments use intended branch-specific DB behavior.
 
 ## Project Structure
 
 - `app/page.tsx` — game container and client-side state machine
 - `components/` — game panel, result card, leaderboard sections
 - `app/api/scores/route.ts` — leaderboard API handlers
-- `lib/db.ts` — database helper (optional)
-- `lib/feedback.ts` — concise result tier messages
+- `lib/db.ts` — leaderboard query + insert helpers
+- `lib/timezone.ts` — app timezone resolution
 - `db/schema.sql` — SQL schema for leaderboard table
+- `db/migrations/` — migration scripts
 
 ## Notes on Robustness
 
