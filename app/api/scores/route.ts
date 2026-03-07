@@ -1,0 +1,48 @@
+import { NextResponse } from 'next/server';
+
+import { getTopScores, insertScore, isLeaderboardEnabled } from '@/lib/db';
+
+const MAX_NAME_LENGTH = 24;
+
+export async function GET() {
+  if (!isLeaderboardEnabled()) {
+    return NextResponse.json({ enabled: false, scores: [] });
+  }
+
+  const scores = await getTopScores(10);
+  return NextResponse.json({ enabled: true, scores });
+}
+
+export async function POST(request: Request) {
+  if (!isLeaderboardEnabled()) {
+    return NextResponse.json(
+      { message: 'Leaderboard is disabled. Set POSTGRES_URL to enable it.' },
+      { status: 503 }
+    );
+  }
+
+  const body = (await request.json()) as { name?: string; reactionTimeMs?: unknown };
+  const name = (body.name ?? '').trim();
+  const reactionTimeMs = Number(body.reactionTimeMs);
+
+  if (name.length < 2 || name.length > MAX_NAME_LENGTH) {
+    return NextResponse.json(
+      { message: `Name must be between 2 and ${MAX_NAME_LENGTH} characters.` },
+      { status: 400 }
+    );
+  }
+
+  if (!Number.isFinite(reactionTimeMs) || reactionTimeMs < 1 || reactionTimeMs > 5000) {
+    return NextResponse.json(
+      { message: 'Reaction time is invalid.' },
+      { status: 400 }
+    );
+  }
+
+  const score = await insertScore({
+    name,
+    reactionTimeMs: Math.round(reactionTimeMs),
+  });
+
+  return NextResponse.json({ score }, { status: 201 });
+}
