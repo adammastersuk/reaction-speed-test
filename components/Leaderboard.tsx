@@ -29,7 +29,10 @@ export function Leaderboard({ enabled, loading, error, scores }: LeaderboardProp
         <ol className="score-list">
           {scores.map((score, index) => (
             <li key={score.id} className="score-item">
-              <span>{index + 1}. {score.name}</span>
+              <span className="score-name">
+                <span className="score-rank">{index + 1}</span>
+                {score.name}
+              </span>
               <strong>{score.reaction_time_ms} ms</strong>
             </li>
           ))}
