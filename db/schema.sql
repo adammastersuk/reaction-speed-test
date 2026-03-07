@@ -5,5 +5,5 @@ CREATE TABLE IF NOT EXISTS reaction_scores (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS reaction_scores_ranking_idx
-  ON reaction_scores (reaction_time_ms ASC, created_at ASC);
+CREATE INDEX IF NOT EXISTS reaction_scores_daily_leaderboard_idx
+  ON reaction_scores (created_at, reaction_time_ms ASC, id ASC);

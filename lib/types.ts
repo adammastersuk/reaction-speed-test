@@ -6,3 +6,10 @@ export interface LeaderboardScore {
   reaction_time_ms: number;
   created_at: string;
 }
+
+export interface LeaderboardResponse {
+  enabled: boolean;
+  leaderboardLabel: string;
+  timeZone: string;
+  scores: LeaderboardScore[];
+}

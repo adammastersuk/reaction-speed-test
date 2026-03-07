@@ -1,16 +1,22 @@
 import { NextResponse } from 'next/server';
 
 import { getTopScores, insertScore, isLeaderboardEnabled } from '@/lib/db';
+import { getAppTimeZone } from '@/lib/timezone';
 
 const MAX_NAME_LENGTH = 24;
+const TOP_FIVE_LIMIT = 5;
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  const timeZone = getAppTimeZone();
+
   if (!isLeaderboardEnabled()) {
-    return NextResponse.json({ enabled: false, scores: [] });
+    return NextResponse.json({ enabled: false, leaderboardLabel: "Today's Top 5", timeZone, scores: [] });
   }
 
-  const scores = await getTopScores(10);
-  return NextResponse.json({ enabled: true, scores });
+  const scores = await getTopScores({ limit: TOP_FIVE_LIMIT, timeZone });
+  return NextResponse.json({ enabled: true, leaderboardLabel: "Today's Top 5", timeZone, scores });
 }
 
 export async function POST(request: Request) {

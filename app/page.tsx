@@ -6,7 +6,7 @@ import { GamePanel } from '@/components/GamePanel';
 import { Leaderboard } from '@/components/Leaderboard';
 import { ResultCard } from '@/components/ResultCard';
 import { getPerformanceMessage } from '@/lib/feedback';
-import type { GameStatus, LeaderboardScore } from '@/lib/types';
+import type { GameStatus, LeaderboardResponse, LeaderboardScore } from '@/lib/types';
 
 const MIN_DELAY_MS = 1400;
 const MAX_DELAY_MS = 3600;
@@ -21,6 +21,8 @@ export default function HomePage() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [leaderboardEnabled, setLeaderboardEnabled] = useState(false);
   const [scores, setScores] = useState<LeaderboardScore[]>([]);
+  const [leaderboardLabel, setLeaderboardLabel] = useState("Today's Top 5");
+  const [leaderboardTimeZone, setLeaderboardTimeZone] = useState('UTC');
   const [scoresLoading, setScoresLoading] = useState(false);
   const [scoresError, setScoresError] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -43,12 +45,11 @@ export default function HomePage() {
     setScoresError(null);
 
     try {
-      const response = await fetch('/api/scores', { method: 'GET' });
-      const payload = (await response.json()) as {
-        enabled: boolean;
-        scores: LeaderboardScore[];
-      };
+      const response = await fetch('api/scores', { method: 'GET' });
+      const payload = (await response.json()) as LeaderboardResponse;
       setLeaderboardEnabled(payload.enabled);
+      setLeaderboardLabel(payload.leaderboardLabel ?? "Today's Top 5");
+      setLeaderboardTimeZone(payload.timeZone ?? 'UTC');
       setScores(payload.scores ?? []);
     } catch {
       setScoresError('Could not load leaderboard right now.');
@@ -130,7 +131,7 @@ export default function HomePage() {
     setSubmitMessage(null);
 
     try {
-      const response = await fetch('/api/scores', {
+      const response = await fetch('api/scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -240,7 +241,14 @@ export default function HomePage() {
 
           {showLeaderboard && (
             <div id="leaderboard-section">
-              <Leaderboard enabled={leaderboardEnabled} loading={scoresLoading} error={scoresError} scores={scores} />
+              <Leaderboard
+                enabled={leaderboardEnabled}
+                loading={scoresLoading}
+                error={scoresError}
+                scores={scores}
+                title={leaderboardLabel}
+                timeZone={leaderboardTimeZone}
+              />
             </div>
           )}
         </section>
