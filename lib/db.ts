@@ -4,12 +4,21 @@ import { getAppTimeZone } from '@/lib/timezone';
 
 const DEFAULT_TOP_SCORES_LIMIT = 5;
 
-const connectionString = process.env.POSTGRES_URL?.trim() || process.env.DATABASE_URL?.trim() || '';
+function normalizeConnectionString(rawConnectionString: string): string {
+  return rawConnectionString
+    .trim()
+    .replace(/^psql:\/\//i, 'postgres://')
+    .replace(/^postgresql:\/\//i, 'postgres://');
+}
+
+const rawConnectionString = process.env.POSTGRES_URL?.trim() || process.env.DATABASE_URL?.trim() || '';
+const connectionString = rawConnectionString ? normalizeConnectionString(rawConnectionString) : '';
 
 const sql = connectionString
-  ? postgres(connectionString.replace(/^psql:\/\//, 'postgres://'), {
+  ? postgres(connectionString, {
       ssl: 'require',
       max: 1,
+      prepare: false,
       idle_timeout: 20,
       connect_timeout: 10,
     })
@@ -44,7 +53,8 @@ export async function isLeaderboardReachable(): Promise<boolean> {
   try {
     await sql`SELECT 1`;
     return true;
-  } catch {
+  } catch (error) {
+    console.error('Leaderboard reachability check failed:', error);
     return false;
   }
 }

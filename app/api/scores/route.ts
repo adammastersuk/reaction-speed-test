@@ -48,7 +48,9 @@ export async function GET() {
     };
 
     return NextResponse.json(payload);
-  } catch {
+  } catch (error) {
+    console.error('Failed to load leaderboard scores:', error);
+
     const payload: LeaderboardResponse = {
       ...getBasePayload(timeZone),
       availability: 'unavailable',
@@ -98,7 +100,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ score } satisfies SaveScoreResponse, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error('Failed to insert leaderboard score:', error);
     return NextResponse.json({ message: 'Leaderboard temporarily unavailable.' } satisfies ApiErrorResponse, { status: 503 });
   }
 }

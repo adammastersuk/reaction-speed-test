@@ -74,7 +74,7 @@ export default function HomePage() {
     setScoresLoading(true);
 
     try {
-      const response = await fetch('api/scores', { method: 'GET' });
+      const response = await fetch('./api/scores', { method: 'GET' });
       const payload = (await response.json()) as LeaderboardResponse;
       setLeaderboardAvailability(payload.availability ?? 'unavailable');
       setLeaderboardLabel(payload.leaderboardLabel ?? "Today's Top 5");
@@ -195,7 +195,7 @@ export default function HomePage() {
     setSubmitMessage(null);
 
     try {
-      const response = await fetch('api/scores', {
+      const response = await fetch('./api/scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
