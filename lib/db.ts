@@ -2,18 +2,18 @@ import postgres from 'postgres';
 
 import { getAppTimeZone } from '@/lib/timezone';
 
-const connectionString = process.env.POSTGRES_URL;
-
-const sql =
-  connectionString && connectionString.trim().length > 0
-    ? postgres(connectionString, { ssl: 'require' })
-    : null;
-
 const DEFAULT_TOP_SCORES_LIMIT = 5;
 
-export function isLeaderboardEnabled(): boolean {
-  return Boolean(sql);
-}
+const connectionString = process.env.POSTGRES_URL?.trim() || process.env.DATABASE_URL?.trim() || '';
+
+const sql = connectionString
+  ? postgres(connectionString.replace(/^psql:\/\//, 'postgres://'), {
+      ssl: 'require',
+      max: 1,
+      idle_timeout: 20,
+      connect_timeout: 10,
+    })
+  : null;
 
 export interface InsertScoreInput {
   name: string;
@@ -30,6 +30,23 @@ export interface LeaderboardScoreRow {
 interface TopScoresOptions {
   limit?: number;
   timeZone?: string;
+}
+
+export function isLeaderboardConfigured(): boolean {
+  return Boolean(sql);
+}
+
+export async function isLeaderboardReachable(): Promise<boolean> {
+  if (!sql) {
+    return false;
+  }
+
+  try {
+    await sql`SELECT 1`;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function getTopScores(options: TopScoresOptions = {}): Promise<LeaderboardScoreRow[]> {
@@ -52,7 +69,7 @@ export async function getTopScores(options: TopScoresOptions = {}): Promise<Lead
 
 export async function insertScore(input: InsertScoreInput) {
   if (!sql) {
-    throw new Error('Leaderboard is not enabled.');
+    throw new Error('Leaderboard is unavailable.');
   }
 
   const [row] = await sql<LeaderboardScoreRow[]>`

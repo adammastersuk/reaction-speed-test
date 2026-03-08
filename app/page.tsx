@@ -6,25 +6,55 @@ import { GamePanel } from '@/components/GamePanel';
 import { Leaderboard } from '@/components/Leaderboard';
 import { ResultCard } from '@/components/ResultCard';
 import { getPerformanceMessage } from '@/lib/feedback';
-import type { GameStatus, LeaderboardResponse, LeaderboardScore } from '@/lib/types';
+import type {
+  ApiErrorResponse,
+  GameStatus,
+  LeaderboardAvailability,
+  LeaderboardResponse,
+  LeaderboardScore,
+} from '@/lib/types';
 
 const MIN_DELAY_MS = 1400;
 const MAX_DELAY_MS = 3600;
+const THEME_STORAGE_KEY = 'rst-theme';
+
+type ThemeMode = 'light' | 'dark';
 
 function randomDelay() {
   return Math.floor(Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS + 1)) + MIN_DELAY_MS;
 }
 
+function getThemeFromDocument(): ThemeMode {
+  if (typeof document === 'undefined') {
+    return 'light';
+  }
+
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target.isContentEditable) {
+    return true;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+  return tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+}
+
 export default function HomePage() {
+  const [theme, setTheme] = useState<ThemeMode>('light');
   const [status, setStatus] = useState<GameStatus>('idle');
   const [reactionTimeMs, setReactionTimeMs] = useState<number | null>(null);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [leaderboardEnabled, setLeaderboardEnabled] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(true);
   const [scores, setScores] = useState<LeaderboardScore[]>([]);
+  const [leaderboardAvailability, setLeaderboardAvailability] = useState<LeaderboardAvailability>('not_configured');
   const [leaderboardLabel, setLeaderboardLabel] = useState("Today's Top 5");
   const [leaderboardTimeZone, setLeaderboardTimeZone] = useState('UTC');
   const [scoresLoading, setScoresLoading] = useState(false);
-  const [scoresError, setScoresError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
@@ -42,20 +72,24 @@ export default function HomePage() {
 
   const loadScores = useCallback(async () => {
     setScoresLoading(true);
-    setScoresError(null);
 
     try {
       const response = await fetch('api/scores', { method: 'GET' });
       const payload = (await response.json()) as LeaderboardResponse;
-      setLeaderboardEnabled(payload.enabled);
+      setLeaderboardAvailability(payload.availability ?? 'unavailable');
       setLeaderboardLabel(payload.leaderboardLabel ?? "Today's Top 5");
       setLeaderboardTimeZone(payload.timeZone ?? 'UTC');
       setScores(payload.scores ?? []);
     } catch {
-      setScoresError('Could not load leaderboard right now.');
+      setLeaderboardAvailability('unavailable');
+      setScores([]);
     } finally {
       setScoresLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    setTheme(getThemeFromDocument());
   }, []);
 
   useEffect(() => {
@@ -101,18 +135,48 @@ export default function HomePage() {
       const elapsed = Math.max(1, Math.round(performance.now() - goAtRef.current));
       setReactionTimeMs(elapsed);
       setStatus('result');
-      return;
     }
   }, [clearRoundTimer, status]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== 'Space') {
+        return;
+      }
+
+      if (isTypingTarget(event.target)) {
+        return;
+      }
+
+      if (status === 'waiting' || status === 'go') {
+        event.preventDefault();
+        if (!event.repeat) {
+          handlePanelInteract();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [handlePanelInteract, status]);
+
+  const toggleTheme = useCallback(() => {
+    const nextTheme: ThemeMode = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = nextTheme;
+    localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    setTheme(nextTheme);
+  }, [theme]);
 
   const instruction = useMemo(() => {
     switch (status) {
       case 'idle':
         return 'Press Start Test to begin your first round.';
       case 'waiting':
-        return 'Wait for green… clicking now counts as too soon.';
+        return 'Wait for green. Clicking or pressing Space too early counts as too soon.';
       case 'go':
-        return 'Go. Tap or click immediately.';
+        return 'Go. Tap, click, or press Space immediately.';
       case 'result':
         return 'Round complete. Review your result and run another test.';
       case 'tooSoon':
@@ -123,7 +187,7 @@ export default function HomePage() {
   }, [status]);
 
   const submitScore = useCallback(async () => {
-    if (!reactionTimeMs || !leaderboardEnabled || submitLoading) {
+    if (!reactionTimeMs || leaderboardAvailability !== 'ready' || submitLoading) {
       return;
     }
 
@@ -140,7 +204,7 @@ export default function HomePage() {
         }),
       });
 
-      const payload = (await response.json()) as { message?: string };
+      const payload = (await response.json()) as ApiErrorResponse;
 
       if (!response.ok) {
         setSubmitMessage(payload.message ?? 'Could not submit score.');
@@ -155,11 +219,11 @@ export default function HomePage() {
     } finally {
       setSubmitLoading(false);
     }
-  }, [leaderboardEnabled, loadScores, name, reactionTimeMs, submitLoading]);
+  }, [leaderboardAvailability, loadScores, name, reactionTimeMs, submitLoading]);
 
   const canSubmit =
     status === 'result' &&
-    leaderboardEnabled &&
+    leaderboardAvailability === 'ready' &&
     reactionTimeMs !== null &&
     name.trim().length >= 2 &&
     name.trim().length <= 24;
@@ -167,10 +231,13 @@ export default function HomePage() {
   return (
     <main className="page">
       <div className="container">
-        <div className="top-nav">
+        <div className="top-bar">
           <a className="back-link" href="https://builds.adammasters.co.uk">
             ← Back to Builds
           </a>
+          <button type="button" className="secondary-btn theme-toggle" onClick={toggleTheme}>
+            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          </button>
         </div>
 
         <header className="header">
@@ -194,7 +261,7 @@ export default function HomePage() {
             <div className="result-stack">
               <ResultCard reactionTimeMs={reactionTimeMs} feedback={getPerformanceMessage(reactionTimeMs)} />
 
-              {leaderboardEnabled && (
+              {leaderboardAvailability === 'ready' && (
                 <section className="submit-card">
                   <label htmlFor="display-name">Save this result</label>
                   <div className="submit-row">
@@ -221,7 +288,7 @@ export default function HomePage() {
           {status === 'tooSoon' && (
             <section className="too-soon-card" role="status">
               <strong>Too soon</strong>
-              <p>You clicked before the signal turned green. Reset and try again.</p>
+              <p>You reacted before the signal turned green. Reset and try again.</p>
             </section>
           )}
         </section>
@@ -231,20 +298,19 @@ export default function HomePage() {
             <button
               type="button"
               className="secondary-btn"
-              onClick={() => setShowLeaderboard((v) => !v)}
+              onClick={() => setShowLeaderboard((value) => !value)}
               aria-expanded={showLeaderboard}
               aria-controls="leaderboard-section"
             >
-              {showLeaderboard ? 'Hide Leaderboard' : 'View Leaderboard'}
+              {showLeaderboard ? 'Hide Today’s Top 5' : 'Show Today’s Top 5'}
             </button>
           </div>
 
           {showLeaderboard && (
             <div id="leaderboard-section">
               <Leaderboard
-                enabled={leaderboardEnabled}
+                availability={leaderboardAvailability}
                 loading={scoresLoading}
-                error={scoresError}
                 scores={scores}
                 title={leaderboardLabel}
                 timeZone={leaderboardTimeZone}

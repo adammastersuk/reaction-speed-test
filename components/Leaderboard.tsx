@@ -1,11 +1,10 @@
 'use client';
 
-import type { LeaderboardScore } from '@/lib/types';
+import type { LeaderboardAvailability, LeaderboardScore } from '@/lib/types';
 
 interface LeaderboardProps {
-  enabled: boolean;
+  availability: LeaderboardAvailability;
   loading: boolean;
-  error: string | null;
   scores: LeaderboardScore[];
   title: string;
   timeZone: string;
@@ -26,30 +25,40 @@ function formatSubmittedTime(value: string, timeZone: string): string {
   }).format(date);
 }
 
-export function Leaderboard({ enabled, loading, error, scores, title, timeZone }: LeaderboardProps) {
-  if (!enabled) {
-    return (
-      <section className="leaderboard">
-        <h2>{title}</h2>
-        <p className="muted">Leaderboard is optional. Add a database connection to enable score saving.</p>
-      </section>
-    );
+function getLeaderboardMessage(availability: LeaderboardAvailability, loading: boolean, scoresLength: number): string | null {
+  if (loading) {
+    return 'Loading leaderboard…';
   }
 
+  if (availability === 'not_configured') {
+    return 'Leaderboard unavailable.';
+  }
+
+  if (availability === 'unavailable') {
+    return 'Leaderboard temporarily unavailable.';
+  }
+
+  if (scoresLength === 0) {
+    return 'No submissions today yet.';
+  }
+
+  return null;
+}
+
+export function Leaderboard({ availability, loading, scores, title, timeZone }: LeaderboardProps) {
+  const message = getLeaderboardMessage(availability, loading, scores.length);
+  const canShowScores = availability === 'ready' && !loading && scores.length > 0;
+
   return (
-    <section className="leaderboard">
+    <section className="leaderboard" aria-live="polite">
       <div className="leaderboard-header">
         <h2>{title}</h2>
         <p className="muted">Timezone: {timeZone}</p>
       </div>
 
-      {loading && <p className="muted">Loading scores…</p>}
-      {error && <p className="error-text">{error}</p>}
-      {!loading && !error && scores.length === 0 && (
-        <p className="muted">No submissions yet today. Be the first to set the pace.</p>
-      )}
+      {message && <p className={availability === 'unavailable' ? 'error-text' : 'muted'}>{message}</p>}
 
-      {!loading && !error && scores.length > 0 && (
+      {canShowScores && (
         <ol className="score-list" aria-label={title}>
           {scores.map((score, index) => (
             <li key={score.id} className="score-item">
