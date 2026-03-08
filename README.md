@@ -76,11 +76,13 @@ For existing deployments, apply migration SQL in `db/migrations/2026030701_daily
 
 ## API Endpoints
 
-- `GET /api/scores`
+- `GET /reaction-speed-test/api/scores`
   - Returns `{ enabled, leaderboardLabel, timeZone, scores }`
-- `POST /api/scores`
+- `POST /reaction-speed-test/api/scores`
   - Accepts `{ name, reactionTimeMs }`
   - Uses the displayed final result value for submission
+
+Because this app is deployed with `basePath: '/reaction-speed-test'`, API calls must include the mounted prefix in browser fetch requests.
 
 ## Vercel Setup
 
