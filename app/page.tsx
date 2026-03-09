@@ -53,8 +53,7 @@ export default function HomePage() {
   const [showLeaderboard, setShowLeaderboard] = useState(true);
   const [scores, setScores] = useState<LeaderboardScore[]>([]);
   const [leaderboardAvailability, setLeaderboardAvailability] = useState<LeaderboardAvailability>('not_configured');
-  const [leaderboardLabel, setLeaderboardLabel] = useState("Today's Top 5");
-  const [leaderboardTimeZone, setLeaderboardTimeZone] = useState('UTC');
+  const [leaderboardLabel, setLeaderboardLabel] = useState('All-Time Top 10');
   const [scoresLoading, setScoresLoading] = useState(false);
   const [name, setName] = useState('');
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -78,8 +77,7 @@ export default function HomePage() {
       const response = await fetch(SCORES_API_PATH, { method: 'GET' });
       const payload = (await response.json()) as LeaderboardResponse;
       setLeaderboardAvailability(payload.availability ?? 'unavailable');
-      setLeaderboardLabel(payload.leaderboardLabel ?? "Today's Top 5");
-      setLeaderboardTimeZone(payload.timeZone ?? 'UTC');
+      setLeaderboardLabel(payload.leaderboardLabel ?? 'All-Time Top 10');
       setScores(payload.scores ?? []);
     } catch {
       setLeaderboardAvailability('unavailable');
@@ -303,7 +301,7 @@ export default function HomePage() {
               aria-expanded={showLeaderboard}
               aria-controls="leaderboard-section"
             >
-              {showLeaderboard ? 'Hide Today’s Top 5' : 'Show Today’s Top 5'}
+              {showLeaderboard ? 'Hide All-Time Top 10' : 'Show All-Time Top 10'}
             </button>
           </div>
 
@@ -314,7 +312,6 @@ export default function HomePage() {
                 loading={scoresLoading}
                 scores={scores}
                 title={leaderboardLabel}
-                timeZone={leaderboardTimeZone}
               />
             </div>
           )}

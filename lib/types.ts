@@ -12,7 +12,6 @@ export interface LeaderboardScore {
 export interface LeaderboardResponse {
   availability: LeaderboardAvailability;
   leaderboardLabel: string;
-  timeZone: string;
   scores: LeaderboardScore[];
 }
 

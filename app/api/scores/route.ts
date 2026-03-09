@@ -1,27 +1,23 @@
 import { NextResponse } from 'next/server';
 
 import { getTopScores, insertScore, isLeaderboardConfigured, isLeaderboardReachable } from '@/lib/db';
-import { getAppTimeZone } from '@/lib/timezone';
 import type { ApiErrorResponse, LeaderboardResponse, SaveScoreResponse } from '@/lib/types';
 
 const MAX_NAME_LENGTH = 24;
-const TOP_FIVE_LIMIT = 5;
+const TOP_TEN_LIMIT = 10;
 
 export const dynamic = 'force-dynamic';
 
-function getBasePayload(timeZone: string) {
+function getBasePayload() {
   return {
-    leaderboardLabel: "Today's Top 5",
-    timeZone,
+    leaderboardLabel: 'All-Time Top 10',
   };
 }
 
 export async function GET() {
-  const timeZone = getAppTimeZone();
-
   if (!isLeaderboardConfigured()) {
     const payload: LeaderboardResponse = {
-      ...getBasePayload(timeZone),
+      ...getBasePayload(),
       availability: 'not_configured',
       scores: [],
     };
@@ -31,7 +27,7 @@ export async function GET() {
 
   if (!(await isLeaderboardReachable())) {
     const payload: LeaderboardResponse = {
-      ...getBasePayload(timeZone),
+      ...getBasePayload(),
       availability: 'unavailable',
       scores: [],
     };
@@ -40,9 +36,9 @@ export async function GET() {
   }
 
   try {
-    const scores = await getTopScores({ limit: TOP_FIVE_LIMIT, timeZone });
+    const scores = await getTopScores({ limit: TOP_TEN_LIMIT });
     const payload: LeaderboardResponse = {
-      ...getBasePayload(timeZone),
+      ...getBasePayload(),
       availability: 'ready',
       scores,
     };
@@ -52,7 +48,7 @@ export async function GET() {
     console.error('Failed to load leaderboard scores:', error);
 
     const payload: LeaderboardResponse = {
-      ...getBasePayload(timeZone),
+      ...getBasePayload(),
       availability: 'unavailable',
       scores: [],
     };

@@ -7,10 +7,9 @@ interface LeaderboardProps {
   loading: boolean;
   scores: LeaderboardScore[];
   title: string;
-  timeZone: string;
 }
 
-function formatSubmittedTime(value: string, timeZone: string): string {
+function formatSubmittedTime(value: string): string {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -18,10 +17,12 @@ function formatSubmittedTime(value: string, timeZone: string): string {
   }
 
   return new Intl.DateTimeFormat('en-GB', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    timeZone,
   }).format(date);
 }
 
@@ -39,13 +40,13 @@ function getLeaderboardMessage(availability: LeaderboardAvailability, loading: b
   }
 
   if (scoresLength === 0) {
-    return 'No submissions today yet.';
+    return 'No scores yet. Be the first to set a record.';
   }
 
   return null;
 }
 
-export function Leaderboard({ availability, loading, scores, title, timeZone }: LeaderboardProps) {
+export function Leaderboard({ availability, loading, scores, title }: LeaderboardProps) {
   const message = getLeaderboardMessage(availability, loading, scores.length);
   const canShowScores = availability === 'ready' && !loading && scores.length > 0;
 
@@ -53,7 +54,6 @@ export function Leaderboard({ availability, loading, scores, title, timeZone }: 
     <section className="leaderboard" aria-live="polite">
       <div className="leaderboard-header">
         <h2>{title}</h2>
-        <p className="muted">Timezone: {timeZone}</p>
       </div>
 
       {message && <p className={availability === 'unavailable' ? 'error-text' : 'muted'}>{message}</p>}
@@ -70,7 +70,7 @@ export function Leaderboard({ availability, loading, scores, title, timeZone }: 
               </div>
               <div className="score-metrics">
                 <strong>{score.reaction_time_ms} ms</strong>
-                <span className="muted score-time">{formatSubmittedTime(score.created_at, timeZone)}</span>
+                <span className="muted score-time">{formatSubmittedTime(score.created_at)}</span>
               </div>
             </li>
           ))}
