@@ -1,7 +1,5 @@
 import postgres from 'postgres';
 
-import { getAppTimeZone } from '@/lib/timezone';
-
 const DEFAULT_TOP_SCORES_LIMIT = 5;
 
 function normalizeConnectionString(rawConnectionString: string): string {
@@ -38,7 +36,6 @@ export interface LeaderboardScoreRow {
 
 interface TopScoresOptions {
   limit?: number;
-  timeZone?: string;
 }
 
 export function isLeaderboardConfigured(): boolean {
@@ -65,13 +62,10 @@ export async function getTopScores(options: TopScoresOptions = {}): Promise<Lead
   }
 
   const limit = options.limit ?? DEFAULT_TOP_SCORES_LIMIT;
-  const timeZone = options.timeZone ?? getAppTimeZone();
 
   return sql<LeaderboardScoreRow[]>`
     SELECT id, name, reaction_time_ms, created_at
     FROM reaction_scores
-    WHERE created_at >= date_trunc('day', now() AT TIME ZONE ${timeZone}) AT TIME ZONE ${timeZone}
-      AND created_at < (date_trunc('day', now() AT TIME ZONE ${timeZone}) + interval '1 day') AT TIME ZONE ${timeZone}
     ORDER BY reaction_time_ms ASC, created_at ASC, id ASC
     LIMIT ${limit}
   `;
