@@ -4,13 +4,13 @@ import { getTopScores, insertScore, isLeaderboardConfigured, isLeaderboardReacha
 import type { ApiErrorResponse, LeaderboardResponse, SaveScoreResponse } from '@/lib/types';
 
 const MAX_NAME_LENGTH = 24;
-const TOP_FIVE_LIMIT = 5;
+const TOP_TEN_LIMIT = 10;
 
 export const dynamic = 'force-dynamic';
 
 function getBasePayload() {
   return {
-    leaderboardLabel: 'All-Time Top 5',
+    leaderboardLabel: 'All-Time Top 10',
   };
 }
 
@@ -36,7 +36,7 @@ export async function GET() {
   }
 
   try {
-    const scores = await getTopScores({ limit: TOP_FIVE_LIMIT });
+    const scores = await getTopScores({ limit: TOP_TEN_LIMIT });
     const payload: LeaderboardResponse = {
       ...getBasePayload(),
       availability: 'ready',

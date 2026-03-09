@@ -8,7 +8,7 @@ A polished, production-ready reaction speed test built with Next.js App Router a
 - Randomized start delay with safe timer cleanup
 - Mouse + touch friendly interaction via one large responsive panel
 - Mobile-focused layout (no fixed controls that can hide key actions)
-- Optional Neon/Postgres-backed **global all-time Top 5** leaderboard
+- Optional Neon/Postgres-backed **global all-time Top 10** leaderboard
 - Accessible copy, large tap targets, reduced-motion support
 
 ## Tech Stack
@@ -70,7 +70,7 @@ For existing deployments, apply migration SQL in `db/migrations/2026030901_globa
   1. `reaction_time_ms ASC` (faster is better)
   2. `created_at ASC`
   3. `id ASC`
-- Result size is capped at 5 rows in SQL.
+- Result size is capped at 10 rows in SQL.
 
 ## API Endpoints
 
